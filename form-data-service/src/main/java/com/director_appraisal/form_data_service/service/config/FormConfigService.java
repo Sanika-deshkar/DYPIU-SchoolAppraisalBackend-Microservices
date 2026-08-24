@@ -237,6 +237,67 @@ public class FormConfigService {
         log.info("Rolled back schema '{}' to version {} (ID: {})", schema.getName(), target.getVersionNumber(), target.getId());
     }
 
+    @Transactional
+    public void deleteVersion(Long versionId) {
+        SchemaVersion version = schemaVersionRepository.findById(versionId)
+                .orElseThrow(() -> new IllegalArgumentException("Version not found: " + versionId));
+
+        Long schemaId = version.getSchemaId();
+
+        // 1. Delete all fields, tables, sections
+        List<FormSection> sections = formSectionRepository.findByVersionIdOrderByDisplayOrderAscIdAsc(versionId);
+        for (FormSection s : sections) {
+            List<FormTable> tables = formTableRepository.findBySectionIdOrderByDisplayOrderAscIdAsc(s.getId());
+            for (FormTable t : tables) {
+                formFieldRepository.deleteByTableId(t.getId());
+            }
+            formTableRepository.deleteBySectionId(s.getId());
+            formFieldRepository.deleteBySectionId(s.getId());
+        }
+        formSectionRepository.deleteByVersionId(versionId);
+
+        // 2. Delete the version
+        schemaVersionRepository.deleteById(versionId);
+
+        // 3. Update active version on parent schema if this was the active version
+        if (schemaId != null) {
+            formSchemaRepository.findById(schemaId).ifPresent(schema -> {
+                if (versionId.equals(schema.getActiveVersionId())) {
+                    List<SchemaVersion> remainingVersions = schemaVersionRepository.findBySchemaIdOrderByVersionNumberDesc(schemaId);
+                    Optional<SchemaVersion> latestPublished = remainingVersions.stream()
+                            .filter(v -> "PUBLISHED".equalsIgnoreCase(v.getStatus()))
+                            .findFirst();
+                    if (latestPublished.isPresent()) {
+                        schema.setActiveVersionId(latestPublished.get().getId());
+                        schema.setActiveVersionNumber(latestPublished.get().getVersionNumber());
+                    } else if (!remainingVersions.isEmpty()) {
+                        schema.setActiveVersionId(remainingVersions.get(0).getId());
+                        schema.setActiveVersionNumber(remainingVersions.get(0).getVersionNumber());
+                    } else {
+                        schema.setActiveVersionId(null);
+                        schema.setActiveVersionNumber(null);
+                    }
+                    formSchemaRepository.save(schema);
+                }
+            });
+        }
+        log.info("Deleted version {}", versionId);
+    }
+
+    @Transactional
+    public void deleteSchema(Long schemaId) {
+        FormSchema schema = formSchemaRepository.findById(schemaId)
+                .orElseThrow(() -> new IllegalArgumentException("Schema not found: " + schemaId));
+
+        List<SchemaVersion> versions = schemaVersionRepository.findBySchemaIdOrderByVersionNumberDesc(schemaId);
+        for (SchemaVersion v : versions) {
+            deleteVersion(v.getId());
+        }
+
+        formSchemaRepository.deleteById(schemaId);
+        log.info("Deleted schema '{}' (ID: {})", schema.getName(), schemaId);
+    }
+
     private void validateVersionIntegrity(Long versionId) {
         List<FormSection> sections = formSectionRepository.findByVersionIdOrderByDisplayOrderAscIdAsc(versionId);
         if (sections.isEmpty()) {

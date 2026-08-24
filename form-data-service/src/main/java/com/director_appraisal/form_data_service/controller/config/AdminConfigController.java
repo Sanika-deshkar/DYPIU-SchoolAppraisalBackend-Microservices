@@ -95,6 +95,15 @@ public class AdminConfigController {
         return ResponseEntity.ok(result);
     }
 
+    @DeleteMapping("/schemas/{schemaId}")
+    public ResponseEntity<Map<String, Object>> deleteSchema(
+            @PathVariable Long schemaId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        validateAdminRole(userRole);
+        formConfigService.deleteSchema(schemaId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Schema deleted successfully."));
+    }
+
     // 2. Version Lifecycle
     @PostMapping("/schemas/{schemaId}/draft")
     public ResponseEntity<SchemaVersion> createDraft(
@@ -102,6 +111,15 @@ public class AdminConfigController {
             @RequestParam(required = false, defaultValue = "admin") String createdBy) {
         SchemaVersion draft = formConfigService.createDraftVersion(schemaId, createdBy);
         return ResponseEntity.ok(draft);
+    }
+
+    @DeleteMapping("/versions/{versionId}")
+    public ResponseEntity<Map<String, Object>> deleteVersion(
+            @PathVariable Long versionId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        validateAdminRole(userRole);
+        formConfigService.deleteVersion(versionId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Version deleted successfully."));
     }
 
     @GetMapping("/versions/{versionId}")
