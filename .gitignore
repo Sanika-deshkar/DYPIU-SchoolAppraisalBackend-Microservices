@@ -45,3 +45,8 @@ out/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# Log files and directories
+logs/
+*.log
+*.log.gz
