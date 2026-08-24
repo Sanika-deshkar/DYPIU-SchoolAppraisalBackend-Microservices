@@ -6,31 +6,35 @@
 Welcome to the Multi-University Faculty and School Appraisal System!
 
 This manual is a step-by-step guide written in simple, clear language to help
-you test and use all features of the system—from designing custom appraisal
-forms as an Administrator to filling, submitting, reviewing, and exporting
-reports as Faculty Directors and Reviewers.
+you test and use all features of the system—from creating multi-tenant university
+institutions, provisioning IQAC and Vice-Chancellor accounts from the Admin UI
+(with zero manual SQL needed), designing dynamic appraisal forms, to filling,
+submitting, reviewing, and exporting reports as Faculty Directors and Reviewers.
 
 --------------------------------------------------------------------------------
 TABLE OF CONTENTS
 --------------------------------------------------------------------------------
 1. System Overview & Quick Access Links
-2. Default User Roles & Login Accounts
-3. PART 1: ADMIN FORM STUDIO (Form Designer & Versioning)
-   3.1. Selecting and Managing Universities
-   3.2. Viewing Schemas & Creating a New Draft Version
-   3.3. Building Sections, Tables, and Input Fields
-   3.4. Supported Input Field Types
-   3.5. Reordering Sections, Tables, and Columns
-   3.6. Testing with Live Form Preview
-   3.7. Publishing the Schema (Activating for Faculty)
-   3.8. Rolling Back to a Previous Version
-4. PART 2: MAIN APPRAISAL PORTAL (Faculty & Directors)
-   4.1. Logging In
-   4.2. Navigating the Dynamic Appraisal Form
-   4.3. Filling Form Fields & Adding Dynamic Table Rows
-   4.4. Uploading PDF and Image Attachments
-   4.5. Saving Drafts (Auto-Save and Manual Save)
-   4.6. Final Submission
+2. User Roles & Account Provisioning Architecture
+3. PART 1: ADMIN FORM STUDIO (Form Designer & University Onboarding)
+   3.1. Onboarding and Managing Universities
+   3.2. Provisioning University Leadership (IQAC & VC Accounts) - [No SQL Needed!]
+   3.3. Viewing Schemas & Creating a New Draft Version
+   3.4. Building Sections, Tables, and Input Fields
+   3.5. Supported Input Field Types
+   3.6. Reordering Sections, Tables, and Columns
+   3.7. Testing with Live Form Preview
+   3.8. Publishing the Schema (Activating for Faculty)
+   3.9. Rolling Back to a Previous Version
+4. PART 2: MAIN APPRAISAL PORTAL (Faculty, Directors & User Management)
+   4.1. Logging In as IQAC or University Leadership
+   4.2. Provisioning School Directors, Officers, and Auditors (IQAC User Manager)
+   4.3. Logging In as Faculty / School Director
+   4.4. Navigating the Dynamic Appraisal Form
+   4.5. Filling Form Fields & Adding Dynamic Table Rows
+   4.6. Uploading PDF and Image Attachments
+   4.7. Saving Drafts (Auto-Save and Manual Save)
+   4.8. Final Submission
 5. PART 3: REVIEW & EVALUATION (IQAC, Vice-Chancellor & Auditors)
    5.1. Viewing Submitted School Appraisals
    5.2. Verifying Uploaded Documents
@@ -47,68 +51,110 @@ The system consists of two web applications connected to a secure backend:
 
 1. ADMIN FORM STUDIO (For Administrators):
    - URL: http://localhost:3005
-   - Purpose: Manage universities, customize forms, add/remove columns,
-     create drafts, preview forms live, and publish active forms.
+   - Purpose: Manage universities, configure IQAC & VC accounts, customize
+     form schemas, add/remove columns, preview forms live, and publish versions.
 
-2. MAIN APPRAISAL PORTAL (For Faculty, Directors, Reviewers & Auditors):
+2. MAIN APPRAISAL PORTAL (For IQAC, VC, Faculty, Directors & Auditors):
    - URL: http://localhost:5173
    - Purpose: Fill appraisal data, upload proof documents, save drafts,
-     submit forms, conduct audits, and download Excel/PDF reports.
+     manage faculty user accounts (by IQAC), review submissions, and download
+     Excel/PDF reports.
 
-Recommended Browser: Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari.
+Recommended Browsers: Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari.
 
 ================================================================================
-2. DEFAULT USER ROLES & TEST LOGIN ACCOUNTS
+2. USER ROLES & ACCOUNT PROVISIONING ARCHITECTURE
 ================================================================================
 
-For testing purposes, you can log in with the following test credentials:
+The system uses a clean two-tier user creation model:
 
+Tier 1: Institutional Leadership (Admin Studio -> IQAC & VC)
+- Created directly inside the Admin Form Studio UI without writing any SQL.
+- When an Administrator onboards a university, they click "👥 Leadership" and
+  create the IQAC Quality Cell Coordinator and Vice-Chancellor accounts.
+
+Tier 2: Faculty & Auditors (Main Portal -> IQAC -> Directors & Auditors)
+- Once the IQAC logs into the Main Portal, they go to the "Manage Users" page
+  and create School Directors, Administrative Officers (Registrars), and
+  Internal/External Auditors for their university.
+
+Default Test Accounts (for DYPIU):
 +-------------------------------------+-----------------------+---------------------+
-| Role / Account Type                 | Username / Email      | Password            |
+| Role / Account Type                 | Username / Email      | Default Password    |
 +-------------------------------------+-----------------------+---------------------+
-| System Administrator / Form Admin   | admin                 | [Use Admin Portal]  |
-| School Director (Academic)          | director@dypiu.ac.in  | Director@123        |
-| Administrative Officer (Registrar)  | admin@dypiu.ac.in     | Admin@123           |
-| IQAC Quality Cell Reviewer          | iqac@dypiu.ac.in      | Iqac@123            |
+| IQAC Quality Cell Coordinator       | iqac@dypiu.ac.in      | Iqac@123            |
 | Vice-Chancellor (Executive)         | vc@dypiu.ac.in        | Vc@123              |
+| School Director (Academic)          | director@dypiu.ac.in  | Director@123        |
+| Administrative Officer (Registrar)  | registrar@dypiu.ac.in | Admin@123           |
 | Academic Auditor (Internal)         | auditor.ac@dypiu.ac.in| Auditor@123         |
-| Administrative Auditor              | auditor.ad@dypiu.ac.in| Auditor@123         |
 +-------------------------------------+-----------------------+---------------------+
 
 * Note: All passwords are case-sensitive.
 
 ================================================================================
-3. PART 1: ADMIN FORM STUDIO (Form Designer & Versioning)
+3. PART 1: ADMIN FORM STUDIO (Form Designer & University Onboarding)
 ================================================================================
 
 Access: Open your browser and go to http://localhost:3005
 
 --------------------------------------------------------------------------------
-3.1. Selecting and Managing Universities
+3.1. Onboarding and Managing Universities
 --------------------------------------------------------------------------------
-1. In the top navigation bar, click the "University" dropdown.
-2. Select your University (for example, "D. Y. Patil International University").
-3. To add a new university:
-   - Click "Universities" in the top bar.
-   - Click "+ Add University".
-   - Enter University Name, Unique Code (e.g. "mit_wpu"), Domain, and Brand Colors.
-   - Click "Save University".
-   - Each university has its own completely separate forms and branding!
+1. In the top navigation bar, you will see the active University dropdown.
+2. To onboard a new university:
+   - Click "🏢 Universities" in the top navigation bar.
+   - Click the "+ Onboard New University" button.
+   - Fill in the university details:
+     * Unique Code (slug): e.g. "mit_wpu" or "coep"
+     * Full Name: e.g. "MIT World Peace University"
+     * Institutional Domain: e.g. "mitwpu.edu.in"
+     * Campus Address & Establishment Act
+     * Primary Brand Color (e.g. #2563eb or #800000)
+   - Click "Create & Initialize".
+   - The university tenant is instantly created with isolated form schemas!
 
 --------------------------------------------------------------------------------
-3.2. Viewing Schemas & Creating a New Draft Version
+3.2. Provisioning University Leadership (IQAC & VC Accounts) - [No SQL Needed!]
 --------------------------------------------------------------------------------
-1. Click on the "Schemas" tab in the top navigation bar.
+Immediately after creating a university (or for any existing university), you
+can set up its leadership accounts directly from the UI:
+
+1. Method A (From Universities Tab):
+   - On the University card, click the "👥 Leadership" button.
+2. Method B (From Navigation Bar):
+   - Select the university from the top dropdown.
+   - Click the yellow "👥 Leadership (IQAC / VC)" button in the top bar.
+
+3. Inside the Leadership Modal:
+   - You will see status cards for "IQAC Quality Cell Coordinator" and "Vice-Chancellor".
+   - Click "+ Create IQAC Account":
+     * Full Name: Pre-filled or customized (e.g. "Dr. Quality Coordinator")
+     * Email (Username): Pre-filled automatically with "iqac@{university.domain}"
+     * Designation: e.g. "Coordinator, IQAC"
+     * Password: Set a secure password (e.g. "Iqac@123")
+     * Click "💾 Save Account".
+   - Click "+ Create VC Account":
+     * Pre-filled with "vc@{university.domain}" and default password "Vc@123".
+     * Click "💾 Save Account".
+
+4. Resetting Passwords or Editing:
+   - If an IQAC coordinator or VC ever forgets their password, open this modal,
+     click "✏️ Edit / Reset Password", type a new password, and click Save.
+
+--------------------------------------------------------------------------------
+3.3. Viewing Schemas & Creating a New Draft Version
+--------------------------------------------------------------------------------
+1. Click on the "📋 Schemas & Versions" tab in the top navigation bar.
 2. You will see the appraisal forms available (e.g., "Academic Audit Schema" or
    "Administrative Audit Schema").
 3. To make changes, you do NOT edit the live form directly. Instead:
    - Find the schema you want to edit.
    - Click the "+ Create New Draft" button.
    - The system creates a safe Draft Version (e.g., Version 2 - DRAFT).
-   - Click "Open Builder" to start designing!
+   - Click "🛠️ Form Builder" to start designing!
 
 --------------------------------------------------------------------------------
-3.3. Building Sections, Tables, and Input Fields
+3.4. Building Sections, Tables, and Input Fields
 --------------------------------------------------------------------------------
 In the Form Builder Canvas, you can design forms with 3 simple building blocks:
 
@@ -128,12 +174,12 @@ B. TABLES (Data Grids inside a Section):
 C. FIELDS / COLUMNS (Inputs inside a Table or Section):
    - Under the table, click "+ Add Column / Field".
    - Enter the Label (e.g., "Date of Meeting").
-   - Select the Field Type (see section 3.4 below).
+   - Select the Field Type (see section 3.5 below).
    - Mark whether it is Required (mandatory).
    - Click "Save Field".
 
 --------------------------------------------------------------------------------
-3.4. Supported Input Field Types
+3.5. Supported Input Field Types
 --------------------------------------------------------------------------------
 You can choose from 8 field types:
 1. TEXT        - For short single-line text (e.g., Title, Name, City).
@@ -147,22 +193,22 @@ You can choose from 8 field types:
 8. URL         - Validated web link / website URL input.
 
 --------------------------------------------------------------------------------
-3.5. Reordering Sections, Tables, and Columns
+3.6. Reordering Sections, Tables, and Columns
 --------------------------------------------------------------------------------
 - Use the Up (↑) and Down (↓) arrow buttons next to any Section, Table, or
   Column to adjust its position.
 - The new order is automatically saved.
 
 --------------------------------------------------------------------------------
-3.6. Testing with Live Form Preview
+3.7. Testing with Live Form Preview
 --------------------------------------------------------------------------------
-1. In the Form Builder Canvas, click the "👁️ Live Form Preview" button at the top.
+1. In the Form Builder Canvas, click the "👁️ Live Preview" button at the top.
 2. The system renders your form exactly as faculty members will see it!
 3. Test entering numbers, selecting dropdowns, and adding table rows.
 4. Click "Back to Builder" when you are satisfied with your design.
 
 --------------------------------------------------------------------------------
-3.7. Publishing the Schema (Activating for Faculty)
+3.8. Publishing the Schema (Activating for Faculty)
 --------------------------------------------------------------------------------
 1. When your form design is ready, click the green "🚀 Publish Version" button.
 2. A confirmation prompt will appear. Click "Confirm".
@@ -173,39 +219,62 @@ You can choose from 8 field types:
    - No code deployment or restart needed!
 
 --------------------------------------------------------------------------------
-3.8. Rolling Back to a Previous Version
+3.9. Rolling Back to a Previous Version
 --------------------------------------------------------------------------------
-1. If you ever need to revert to an older form version, go to "Schemas".
+1. If you ever need to revert to an older form version, go to "Schemas & Versions".
 2. In the Version History timeline, find the older published version.
 3. Click "Rollback to this Version".
 4. The system will instantly switch the active form back to that version.
 
 ================================================================================
-4. PART 2: MAIN APPRAISAL PORTAL (Faculty & Directors)
+4. PART 2: MAIN APPRAISAL PORTAL (Faculty, Directors & User Management)
 ================================================================================
 
 Access: Open your browser and go to http://localhost:5173
 
 --------------------------------------------------------------------------------
-4.1. Logging In
+4.1. Logging In as IQAC or University Leadership
 --------------------------------------------------------------------------------
-1. Enter your University Email and Password on the login screen.
-   (Example: director@dypiu.ac.in / Director@123)
-2. Click "Sign In".
-3. You will be directed straight to your personalized Appraisal Dashboard.
+1. Open http://localhost:5173/login
+2. Enter the IQAC email and password created in Admin Studio (e.g. iqac@dypiu.ac.in / Iqac@123).
+3. Click "Sign In".
+4. You will be directed to the IQAC Dashboard.
 
 --------------------------------------------------------------------------------
-4.2. Navigating the Dynamic Appraisal Form
+4.2. Provisioning School Directors, Officers, and Auditors (IQAC User Manager)
+--------------------------------------------------------------------------------
+As the IQAC Quality Cell Coordinator, you can create and manage user accounts:
+1. In the top navigation, click "Manage Users" (or "User Accounts").
+2. Click "+ Add New User".
+3. Select the User Category:
+   - "Academic Director": Choose the School (e.g. School of Engineering, School of Design),
+     enter Director Name, Email (e.g. director.soe@uni.edu.in), and Password.
+   - "Administrative Officer": Select Post (e.g. Registrar, HR, Dean Placement),
+     enter Officer Name, Email, and Password.
+   - "Auditor": Choose Internal or External, select audit scope/schools, enter
+     Auditor Name, Email, and Password.
+4. Click "Create User". The user can now log in immediately.
+
+--------------------------------------------------------------------------------
+4.3. Logging In as Faculty / School Director
+--------------------------------------------------------------------------------
+1. Enter your Director Email and Password on the login screen.
+   (Example: director@dypiu.ac.in / Director@123)
+2. Click "Sign In".
+3. You will be directed straight to your School Appraisal Form.
+
+--------------------------------------------------------------------------------
+4.4. Navigating the Dynamic Appraisal Form
 --------------------------------------------------------------------------------
 - The portal automatically loads the active published form created by your
   University Administrator.
-- You will see tabs or accordion panels representing each Section (e.g., Part A,
+- You will see tabs or navigation pills representing each Section (e.g., Part A,
   Part B, Part C).
 - In the top header, you will see your School Name, Academic Year, and Current
   Form Status (e.g., "DRAFT").
 
 --------------------------------------------------------------------------------
-4.3. Filling Form Fields & Adding Dynamic Table Rows
+4.5. Filling Form Fields & Adding Dynamic Table Rows
 --------------------------------------------------------------------------------
 1. Click on a Section to expand it.
 2. Fill in the fields:
@@ -220,7 +289,7 @@ Access: Open your browser and go to http://localhost:5173
    - To remove a row, click the red "✕ Remove" button on that row.
 
 --------------------------------------------------------------------------------
-4.4. Uploading PDF and Image Attachments
+4.6. Uploading PDF and Image Attachments
 --------------------------------------------------------------------------------
 1. Wherever an attachment is required (e.g., Meeting Minutes, Grant Letters,
    Certificates), you will see an "📎 Upload" button.
@@ -232,7 +301,7 @@ Access: Open your browser and go to http://localhost:5173
 6. To replace a document, click the "✕" delete icon and upload the new file.
 
 --------------------------------------------------------------------------------
-4.5. Saving Drafts (Auto-Save and Manual Save)
+4.7. Saving Drafts (Auto-Save and Manual Save)
 --------------------------------------------------------------------------------
 1. You do NOT have to complete the entire form in one sitting!
 2. Click the "💾 Save Draft" button at the bottom right of the screen.
@@ -242,7 +311,7 @@ Access: Open your browser and go to http://localhost:5173
    documents will be automatically restored.
 
 --------------------------------------------------------------------------------
-4.6. Final Submission
+4.8. Final Submission
 --------------------------------------------------------------------------------
 1. Once all mandatory fields (marked with a red asterisk *) are completed:
 2. Review your entries across all sections.
@@ -252,7 +321,7 @@ Access: Open your browser and go to http://localhost:5173
 6. Your form status will change to "SUBMITTED" and lock into read-only mode.
 7. Your appraisal is now forwarded to the IQAC, Reviewers, and Auditors.
 
-================================================================================
+===============================================================================
 5. PART 3: REVIEW & EVALUATION (IQAC, Vice-Chancellor & Auditors)
 ================================================================================
 
@@ -277,7 +346,7 @@ Access: Open your browser and go to http://localhost:5173
   "📄 View Doc" links.
 - Click any document link to open and inspect the proof in a new tab.
 - To download all attachments for that school at once, click the
-  "📦 Download All Attachments (.zip)" button.
+  "📦 Download Attachments (.zip)" button.
 
 --------------------------------------------------------------------------------
 5.3. Providing Review Remarks & Scores
@@ -312,25 +381,29 @@ At the top right of the review page, you have 3 export options:
 6. FREQUENTLY ASKED QUESTIONS (FAQ) & TROUBLESHOOTING
 ================================================================================
 
-Q1: I made a change in the Admin Form Studio, but faculty do not see it. Why?
-A1: Make sure you clicked the green "🚀 Publish Version" button in the Form
+Q1: Do I need to run SQL queries in pgAdmin when adding a new university?
+A1: NO! You can do everything from the Admin Form Studio UI (http://localhost:3005).
+    Create the university, click "👥 Leadership", and create the IQAC and VC accounts.
+
+Q2: I made a change in the Admin Form Studio, but faculty do not see it. Why?
+A2: Make sure you clicked the green "🚀 Publish Version" button in the Form
     Studio. Changes in "DRAFT" versions are not visible to users until published.
 
-Q2: What file formats and sizes are allowed for proof attachments?
-A2: PDF documents (.pdf), Word documents (.docx), and Images (.jpg, .png).
+Q3: What file formats and sizes are allowed for proof attachments?
+A3: PDF documents (.pdf), Word documents (.docx), and Images (.jpg, .png).
     The file size limit is 25 MB per attachment.
 
-Q3: Can I edit my appraisal form after clicking "Submit"?
-A3: Once submitted, the form is locked to prevent accidental modifications during
+Q4: Can I edit my appraisal form after clicking "Submit"?
+A4: Once submitted, the form is locked to prevent accidental modifications during
     the official audit. If you need to make changes, contact the IQAC reviewer
     to "Send Back" the submission for revision.
 
-Q4: How do I switch between different Universities?
-A4: In the Admin Form Studio, click the University selector dropdown in the top
+Q5: How do I switch between different Universities?
+A5: In the Admin Form Studio, click the University selector dropdown in the top
     navigation bar to switch between institutions.
 
-Q5: What happens if my internet disconnects while filling the form?
-A5: You can click "Save Draft" frequently. If your session expires, simply sign
+Q6: What happens if my internet disconnects while filling the form?
+A6: You can click "Save Draft" frequently. If your session expires, simply sign
     in again and your saved draft data will be loaded automatically.
 
 ================================================================================
