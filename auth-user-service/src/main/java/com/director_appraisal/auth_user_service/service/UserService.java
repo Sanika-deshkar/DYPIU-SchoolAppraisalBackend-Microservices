@@ -68,6 +68,15 @@ public class UserService implements UserDetailsService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public List<User> findByUniversityId(Long universityId) {
+        if (universityId == null) {
+            return List.of();
+        }
+        return userRepository.findByUniversityId(universityId).stream()
+                .filter(u -> !Boolean.TRUE.equals(u.getDeleted()))
+                .toList();
+    }
+
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }
@@ -94,6 +103,45 @@ public class UserService implements UserDetailsService {
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public User createOrUpdateLeadership(User user, String rawPassword) {
+        String trimmedEmail = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+        user.setEmail(trimmedEmail);
+
+        Optional<User> existingOpt = userRepository.findByEmailIgnoreCase(trimmedEmail);
+        if (existingOpt.isPresent()) {
+            User existing = existingOpt.get();
+            existing.setName(user.getName());
+            existing.setRole(user.getRole());
+            existing.setDesignation(user.getDesignation());
+            existing.setSchool("Root");
+            existing.setAccountType("reviewer");
+            existing.setCategory("all");
+            existing.setStatus("active");
+            existing.setDeleted(false);
+            if (user.getUniversityId() != null) {
+                existing.setUniversityId(user.getUniversityId());
+            }
+            if (user.getUniversityCode() != null && !user.getUniversityCode().isBlank()) {
+                existing.setUniversityCode(user.getUniversityCode());
+            }
+            if (rawPassword != null && !rawPassword.isBlank()) {
+                existing.setPassword(passwordEncoder.encode(rawPassword));
+            }
+            return userRepository.save(existing);
+        } else {
+            if (rawPassword != null && !rawPassword.isBlank()) {
+                user.setPassword(passwordEncoder.encode(rawPassword));
+            }
+            user.setSchool("Root");
+            user.setAccountType("reviewer");
+            user.setCategory("all");
+            user.setStatus("active");
+            user.setDeleted(false);
+            return userRepository.save(user);
+        }
     }
 
     @Transactional

@@ -131,7 +131,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private boolean isPublicEndpoint(String path) {
         if (path == null) return false;
-        if (path.startsWith("/api/auth/") || path.equals("/api/auth") || path.startsWith("/uploads/") || path.startsWith("/api/attachments/public/")) {
+        if (path.startsWith("/api/auth/") || path.equals("/api/auth") || path.startsWith("/uploads/") || path.startsWith("/api/attachments/public/") || path.startsWith("/api/users/university/")) {
             return true;
         }
         return PUBLIC_ENDPOINTS.stream().anyMatch(endpoint -> path.equalsIgnoreCase(endpoint) || path.startsWith(endpoint + "/"));

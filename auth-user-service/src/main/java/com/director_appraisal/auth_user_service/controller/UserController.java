@@ -57,6 +57,83 @@ public class UserController {
         return ResponseEntity.ok(Map.of("users", users));
     }
 
+    @GetMapping("/university/{universityId}")
+    public ResponseEntity<?> getLeadershipUsersByUniversity(@PathVariable Long universityId) {
+        List<Map<String, Object>> users = userService.findByUniversityId(universityId).stream()
+                .filter(u -> "iqac".equalsIgnoreCase(u.getRole()) || "vice-chancellor".equalsIgnoreCase(u.getRole()))
+                .map(this::toUserResponse)
+                .toList();
+        return ResponseEntity.ok(Map.of("users", users));
+    }
+
+    @PostMapping("/university/{universityId}/leadership")
+    public ResponseEntity<?> createOrUpdateLeadershipUser(
+            @PathVariable Long universityId,
+            @RequestBody(required = false) CreateLeadershipRequest request) {
+        if (request == null) {
+            return error(HttpStatus.BAD_REQUEST, "Request body is required.");
+        }
+        String name = clean(request.getName());
+        String email = normalize(request.getEmail());
+        String password = request.getPassword();
+        String role = normalize(request.getRole());
+        String designation = clean(request.getDesignation());
+        String universityCode = clean(request.getUniversityCode());
+
+        if (isBlank(name)) {
+            return error(HttpStatus.BAD_REQUEST, "Full name is required.");
+        }
+        if (isBlank(email) || !EMAIL_PATTERN.matcher(email).matches()) {
+            return error(HttpStatus.BAD_REQUEST, "A valid email address is required.");
+        }
+        if (isBlank(password) || password.length() < 6) {
+            return error(HttpStatus.BAD_REQUEST, "Password must be at least 6 characters.");
+        }
+        if (!"iqac".equals(role) && !"vice-chancellor".equals(role)) {
+            return error(HttpStatus.BAD_REQUEST, "Role must be either 'iqac' or 'vice-chancellor'.");
+        }
+
+        if (isBlank(designation)) {
+            designation = "iqac".equals(role) ? "IQAC Coordinator" : "Vice Chancellor";
+        }
+
+        User userToSave = User.builder()
+                .name(name)
+                .email(email)
+                .role(role)
+                .school("Root")
+                .designation(designation)
+                .universityId(universityId)
+                .universityCode(universityCode != null && !universityCode.isBlank() ? universityCode : "dypiu")
+                .accountType("reviewer")
+                .category("all")
+                .status("active")
+                .build();
+
+        User savedUser = userService.createOrUpdateLeadership(userToSave, password);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Leadership account configured successfully",
+                "user", toUserResponse(savedUser)
+        ));
+    }
+
+    @DeleteMapping("/university/{universityId}/leadership/{userId}")
+    public ResponseEntity<?> deleteLeadershipUser(
+            @PathVariable Long universityId,
+            @PathVariable Long userId) {
+        return userService.findById(userId)
+                .map(user -> {
+                    if (user.getUniversityId() != null && !user.getUniversityId().equals(universityId)) {
+                        return deleteError(HttpStatus.BAD_REQUEST, "User does not belong to specified university.");
+                    }
+                    userService.deleteUser(user);
+                    return ResponseEntity.ok(Map.of(
+                            "success", true,
+                            "message", "Leadership user deleted successfully"));
+                })
+                .orElseGet(() -> deleteError(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(Authentication authentication, @PathVariable String id) {
         ResponseEntity<?> authorizationError = authorizeIqac(authentication);
@@ -861,5 +938,16 @@ public class UserController {
         private String auditorRole;
         private List<String> administrativePosts;
         private List<String> schools;
+    }
+
+    @Data
+    public static class CreateLeadershipRequest {
+        private String name;
+        private String email;
+        private String password;
+        private String role;
+        private String designation;
+        private Long universityId;
+        private String universityCode;
     }
 }
