@@ -48,6 +48,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", e.getMessage(), req, null);
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException e, HttpServletRequest req) {
+        log.warn("[METHOD_NOT_SUPPORTED] path={} method={}", req.getRequestURI(), e.getMethod());
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", e.getMessage(), req, null);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException e, HttpServletRequest req) {
         Map<String, String> errors = new HashMap<>();
