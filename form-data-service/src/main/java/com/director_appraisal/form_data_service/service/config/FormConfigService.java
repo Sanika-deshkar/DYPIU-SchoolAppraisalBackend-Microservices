@@ -38,7 +38,7 @@ public class FormConfigService {
             throw new IllegalArgumentException("University not found for code: " + code);
         }
 
-        FormSchema schema = formSchemaRepository.findByUniversityIdAndAuditTypeIgnoreCase(university.getId(), type)
+        FormSchema schema = formSchemaRepository.findFirstByUniversityIdAndAuditTypeIgnoreCaseOrderByIdAsc(university.getId(), type)
                 .orElseThrow(() -> new IllegalArgumentException("Form schema not found for " + code + " and " + type));
 
         Long versionId = schema.getActiveVersionId();

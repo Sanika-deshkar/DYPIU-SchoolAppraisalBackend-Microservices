@@ -61,7 +61,7 @@ public class DefaultSchemaDataInitializer implements CommandLineRunner {
     }
 
     private void initAcademicSchema(University university) {
-        Optional<FormSchema> existing = formSchemaRepository.findByUniversityIdAndAuditTypeIgnoreCase(university.getId(), "academic");
+        Optional<FormSchema> existing = formSchemaRepository.findFirstByUniversityIdAndAuditTypeIgnoreCaseOrderByIdAsc(university.getId(), "academic");
         if (existing.isPresent() && existing.get().getActiveVersionId() != null) {
             return;
         }
@@ -198,7 +198,7 @@ public class DefaultSchemaDataInitializer implements CommandLineRunner {
     }
 
     private void initAdministrativeSchema(University university) {
-        Optional<FormSchema> existing = formSchemaRepository.findByUniversityIdAndAuditTypeIgnoreCase(university.getId(), "administrative");
+        Optional<FormSchema> existing = formSchemaRepository.findFirstByUniversityIdAndAuditTypeIgnoreCaseOrderByIdAsc(university.getId(), "administrative");
         if (existing.isPresent() && existing.get().getActiveVersionId() != null) {
             return;
         }

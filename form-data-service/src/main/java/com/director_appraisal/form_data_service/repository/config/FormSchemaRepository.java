@@ -10,5 +10,6 @@ import java.util.Optional;
 @Repository
 public interface FormSchemaRepository extends JpaRepository<FormSchema, Long> {
     List<FormSchema> findByUniversityId(Long universityId);
-    Optional<FormSchema> findByUniversityIdAndAuditTypeIgnoreCase(Long universityId, String auditType);
+    List<FormSchema> findByUniversityIdAndAuditTypeIgnoreCase(Long universityId, String auditType);
+    Optional<FormSchema> findFirstByUniversityIdAndAuditTypeIgnoreCaseOrderByIdAsc(Long universityId, String auditType);
 }
