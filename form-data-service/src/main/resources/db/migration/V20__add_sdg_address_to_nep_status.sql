@@ -1,1 +1,0 @@
-ALTER TABLE nep_status ADD COLUMN IF NOT EXISTS sdg_address TEXT;

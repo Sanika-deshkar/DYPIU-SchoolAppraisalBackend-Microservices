@@ -1,4 +1,4 @@
--- V22: Create dynamic form configuration and multi-university tenant tables
+-- V1: Initialize Clean Multi-Tenant Dynamic Form Schema
 
 CREATE TABLE IF NOT EXISTS universities (
     id BIGSERIAL PRIMARY KEY,
@@ -94,17 +94,20 @@ CREATE TABLE IF NOT EXISTS form_fields (
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for performance & tenant isolation
-CREATE INDEX IF NOT EXISTS idx_universities_code ON universities(code);
-CREATE INDEX IF NOT EXISTS idx_form_schemas_uni_id ON form_schemas(university_id);
+CREATE TABLE IF NOT EXISTS academic_years (
+    id BIGSERIAL PRIMARY KEY,
+    academic_year VARCHAR(50) NOT NULL UNIQUE,
+    is_current BOOLEAN DEFAULT FALSE,
+    status VARCHAR(50) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for high-performance tenant querying
+CREATE INDEX IF NOT EXISTS idx_form_schemas_university_id ON form_schemas(university_id);
 CREATE INDEX IF NOT EXISTS idx_form_schemas_audit_type ON form_schemas(audit_type);
 CREATE INDEX IF NOT EXISTS idx_schema_versions_schema_id ON schema_versions(schema_id);
 CREATE INDEX IF NOT EXISTS idx_form_sections_version_id ON form_sections(version_id);
 CREATE INDEX IF NOT EXISTS idx_form_tables_section_id ON form_tables(section_id);
 CREATE INDEX IF NOT EXISTS idx_form_fields_section_id ON form_fields(section_id);
 CREATE INDEX IF NOT EXISTS idx_form_fields_table_id ON form_fields(table_id);
-
--- Seed default university if not existing
-INSERT INTO universities (id, code, name, domain, status, establishment_act, primary_color, created_at, updated_at)
-VALUES (1, 'dypiu', 'D. Y. Patil International University, Akurdi, Pune', 'dypiu.ac.in', 'ACTIVE', 'Maharashtra State Act No. VI of 2019', '#800000', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (code) DO NOTHING;
