@@ -22,11 +22,14 @@ class UniversityServiceTest {
     @Mock
     private UniversityRepository universityRepository;
 
+    @Mock
+    private DefaultSchemaTemplateService defaultSchemaTemplateService;
+
     private UniversityService universityService;
 
     @BeforeEach
     void setUp() {
-        universityService = new UniversityService(universityRepository);
+        universityService = new UniversityService(universityRepository, defaultSchemaTemplateService);
     }
 
     @Test

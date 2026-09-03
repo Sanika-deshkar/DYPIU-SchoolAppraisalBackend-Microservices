@@ -16,6 +16,7 @@ import java.util.Optional;
 public class UniversityService {
 
     private final UniversityRepository universityRepository;
+    private final DefaultSchemaTemplateService defaultSchemaTemplateService;
 
     @Transactional(readOnly = true)
     public List<University> getAllUniversities() {
@@ -43,7 +44,9 @@ public class UniversityService {
             throw new IllegalArgumentException("University code '" + cleanCode + "' already exists.");
         }
         university.setCode(cleanCode);
-        return universityRepository.save(university);
+        University saved = universityRepository.save(university);
+        defaultSchemaTemplateService.seedDefaultTemplatesForUniversity(saved);
+        return saved;
     }
 
     @Transactional
