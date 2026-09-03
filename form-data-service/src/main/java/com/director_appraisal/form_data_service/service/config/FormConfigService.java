@@ -28,6 +28,11 @@ public class FormConfigService {
 
     @Transactional(readOnly = true)
     public CompiledSchemaDto getActiveCompiledSchema(String universityCode, String auditType) {
+        return getActiveCompiledSchema(universityCode, auditType, null);
+    }
+
+    @Transactional(readOnly = true)
+    public CompiledSchemaDto getActiveCompiledSchema(String universityCode, String auditType, String school) {
         String code = (universityCode != null && !universityCode.isBlank()) ? universityCode.trim().toLowerCase() : "dypiu";
         String type = (auditType != null && !auditType.isBlank()) ? auditType.trim().toLowerCase() : "academic";
 
@@ -38,19 +43,53 @@ public class FormConfigService {
             throw new IllegalArgumentException("University not found for code: " + code);
         }
 
-        FormSchema schema = formSchemaRepository.findFirstByUniversityIdAndAuditTypeIgnoreCaseOrderByIdAsc(university.getId(), type)
-                .orElseThrow(() -> new IllegalArgumentException("Form schema not found for " + code + " and " + type));
+        List<FormSchema> allSchemas = formSchemaRepository.findByUniversityId(university.getId());
+        List<FormSchema> matchingType = allSchemas.stream()
+                .filter(s -> type.equalsIgnoreCase(s.getAuditType()) && "ACTIVE".equalsIgnoreCase(s.getStatus()))
+                .toList();
 
-        Long versionId = schema.getActiveVersionId();
+        if (matchingType.isEmpty()) {
+            throw new IllegalArgumentException("No active form schema found for " + code + " and " + type);
+        }
+
+        FormSchema selectedSchema = null;
+        if (school != null && !school.isBlank()) {
+            String cleanSchool = school.trim().toLowerCase();
+            for (FormSchema s : matchingType) {
+                if (matchesSchool(s.getAssignedSchools(), cleanSchool)) {
+                    selectedSchema = s;
+                    break;
+                }
+            }
+        }
+
+        if (selectedSchema == null) {
+            // Fallback to ALL or first matching
+            selectedSchema = matchingType.stream()
+                    .filter(s -> s.getAssignedSchools() == null || "ALL".equalsIgnoreCase(s.getAssignedSchools().trim()) || s.getAssignedSchools().isBlank())
+                    .findFirst()
+                    .orElse(matchingType.get(0));
+        }
+
+        Long versionId = selectedSchema.getActiveVersionId();
         if (versionId == null) {
-            List<SchemaVersion> versions = schemaVersionRepository.findBySchemaIdOrderByVersionNumberDesc(schema.getId());
+            List<SchemaVersion> versions = schemaVersionRepository.findBySchemaIdOrderByVersionNumberDesc(selectedSchema.getId());
             if (versions.isEmpty()) {
-                throw new IllegalStateException("No versions found for schema: " + schema.getName());
+                throw new IllegalStateException("No versions found for schema: " + selectedSchema.getName());
             }
             versionId = versions.get(0).getId();
         }
 
         return getCompiledSchemaByVersion(versionId);
+    }
+
+    private boolean matchesSchool(String assignedSchools, String schoolQuery) {
+        if (assignedSchools == null || assignedSchools.isBlank() || "ALL".equalsIgnoreCase(assignedSchools.trim())) {
+            return false;
+        }
+        String lower = assignedSchools.toLowerCase();
+        String q = schoolQuery.toLowerCase();
+        return lower.contains(q) || q.contains(lower);
     }
 
     @Transactional(readOnly = true)
@@ -339,6 +378,147 @@ public class FormConfigService {
                 }
             }
         }
+    }
+
+    @Transactional
+    public FormSchema cloneSchema(Long sourceSchemaId, String newName, String newAuditType, Long universityId, String assignedSchools, String createdBy) {
+        FormSchema source = formSchemaRepository.findById(sourceSchemaId)
+                .orElseThrow(() -> new IllegalArgumentException("Source schema not found: " + sourceSchemaId));
+
+        Long targetUniId = universityId != null ? universityId : source.getUniversityId();
+        String targetType = (newAuditType != null && !newAuditType.isBlank()) ? newAuditType.trim().toLowerCase() : source.getAuditType();
+        String targetName = (newName != null && !newName.isBlank()) ? newName.trim() : (source.getName() + " (Copy)");
+        String targetAssigned = (assignedSchools != null && !assignedSchools.isBlank()) ? assignedSchools.trim() : "ALL";
+
+        FormSchema newSchema = FormSchema.builder()
+                .universityId(targetUniId)
+                .auditType(targetType)
+                .name(targetName)
+                .description(source.getDescription())
+                .assignedSchools(targetAssigned)
+                .status("ACTIVE")
+                .build();
+
+        FormSchema savedSchema = formSchemaRepository.save(newSchema);
+
+        // Find source version to clone from (prefer active version, or latest published, or latest draft)
+        Long sourceVersionId = source.getActiveVersionId();
+        List<SchemaVersion> sourceVersions = schemaVersionRepository.findBySchemaIdOrderByVersionNumberDesc(sourceSchemaId);
+        if (sourceVersionId == null && !sourceVersions.isEmpty()) {
+            sourceVersionId = sourceVersions.get(0).getId();
+        }
+
+        SchemaVersion draft = SchemaVersion.builder()
+                .schemaId(savedSchema.getId())
+                .versionNumber(1)
+                .status("DRAFT")
+                .academicYear(sourceVersions.isEmpty() ? "2025-26" : sourceVersions.get(0).getAcademicYear())
+                .title(targetName)
+                .ownerRole("administrative".equalsIgnoreCase(targetType) ? "registrar" : "director-schools")
+                .publishedBy(createdBy != null ? createdBy : "admin")
+                .build();
+
+        SchemaVersion savedDraft = schemaVersionRepository.save(draft);
+
+        if (sourceVersionId != null) {
+            cloneVersionTree(sourceVersionId, savedDraft.getId());
+        }
+
+        return savedSchema;
+    }
+
+    @Transactional
+    public FormTable copyTable(Long sourceTableId, Long targetSectionId, String newTitle, String newTableKey) {
+        FormTable sourceTable = formTableRepository.findById(sourceTableId)
+                .orElseThrow(() -> new IllegalArgumentException("Source table not found: " + sourceTableId));
+
+        FormSection targetSection = formSectionRepository.findById(targetSectionId)
+                .orElseThrow(() -> new IllegalArgumentException("Target section not found: " + targetSectionId));
+
+        List<FormTable> existingInTarget = formTableRepository.findBySectionIdOrderByDisplayOrderAscIdAsc(targetSectionId);
+
+        String finalTitle = (newTitle != null && !newTitle.isBlank()) ? newTitle.trim() : (sourceTable.getTitle() + " (Copy)");
+        String finalKey = (newTableKey != null && !newTableKey.isBlank()) ? newTableKey.trim() : (sourceTable.getTableKey() + "_copy_" + System.currentTimeMillis() % 10000);
+
+        FormTable newTable = FormTable.builder()
+                .sectionId(targetSectionId)
+                .title(finalTitle)
+                .tableKey(finalKey)
+                .showTitle(sourceTable.getShowTitle())
+                .isRepeatable(sourceTable.getIsRepeatable())
+                .displayOrder(existingInTarget.size() + 1)
+                .initialRows(sourceTable.getInitialRows())
+                .selectOptions(sourceTable.getSelectOptions())
+                .dateColumns(sourceTable.getDateColumns())
+                .numberColumns(sourceTable.getNumberColumns())
+                .textareaColumns(sourceTable.getTextareaColumns())
+                .textareaMaxLengths(sourceTable.getTextareaMaxLengths())
+                .build();
+
+        FormTable savedTable = formTableRepository.save(newTable);
+
+        List<FormField> sourceColumns = formFieldRepository.findByTableIdOrderByDisplayOrderAscIdAsc(sourceTableId);
+        for (FormField col : sourceColumns) {
+            FormField newCol = FormField.builder()
+                    .sectionId(targetSectionId)
+                    .tableId(savedTable.getId())
+                    .fieldKey(col.getFieldKey())
+                    .label(col.getLabel())
+                    .fieldType(col.getFieldType())
+                    .kind(col.getKind())
+                    .isRequired(col.getIsRequired())
+                    .placeholder(col.getPlaceholder())
+                    .defaultValue(col.getDefaultValue())
+                    .validationRules(col.getValidationRules())
+                    .options(col.getOptions())
+                    .attachmentRules(col.getAttachmentRules())
+                    .displayOrder(col.getDisplayOrder())
+                    .build();
+            formFieldRepository.save(newCol);
+        }
+
+        log.info("Copied table '{}' (ID: {}) to section '{}' (ID: {}) with {} columns",
+                sourceTable.getTitle(), sourceTableId, targetSection.getTitle(), targetSectionId, sourceColumns.size());
+        return savedTable;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getAvailableTablesForUniversity(Long universityId) {
+        List<FormSchema> schemas = formSchemaRepository.findByUniversityId(universityId);
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (FormSchema schema : schemas) {
+            Long activeVersionId = schema.getActiveVersionId();
+            if (activeVersionId == null) {
+                List<SchemaVersion> versions = schemaVersionRepository.findBySchemaIdOrderByVersionNumberDesc(schema.getId());
+                if (!versions.isEmpty()) {
+                    activeVersionId = versions.get(0).getId();
+                }
+            }
+            if (activeVersionId == null) continue;
+
+            List<FormSection> sections = formSectionRepository.findByVersionIdOrderByDisplayOrderAscIdAsc(activeVersionId);
+            for (FormSection sec : sections) {
+                List<FormTable> tables = formTableRepository.findBySectionIdOrderByDisplayOrderAscIdAsc(sec.getId());
+                for (FormTable t : tables) {
+                    List<FormField> cols = formFieldRepository.findByTableIdOrderByDisplayOrderAscIdAsc(t.getId());
+                    Map<String, Object> tMap = new LinkedHashMap<>();
+                    tMap.put("tableId", t.getId());
+                    tMap.put("title", t.getTitle());
+                    tMap.put("tableKey", t.getTableKey());
+                    tMap.put("isRepeatable", t.getIsRepeatable());
+                    tMap.put("columnCount", cols.size());
+                    tMap.put("sectionId", sec.getId());
+                    tMap.put("sectionTitle", sec.getTitle());
+                    tMap.put("schemaId", schema.getId());
+                    tMap.put("schemaName", schema.getName());
+                    tMap.put("auditType", schema.getAuditType());
+                    tMap.put("assignedSchools", schema.getAssignedSchools());
+                    result.add(tMap);
+                }
+            }
+        }
+        return result;
     }
 
     public static String toSnakeCase(String label) {

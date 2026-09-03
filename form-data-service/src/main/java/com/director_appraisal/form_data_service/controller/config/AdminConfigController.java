@@ -82,6 +82,41 @@ public class AdminConfigController {
         return ResponseEntity.ok(saved);
     }
 
+    @PutMapping("/schemas/{schemaId}")
+    public ResponseEntity<FormSchema> updateSchema(
+            @PathVariable Long schemaId,
+            @RequestBody FormSchema req,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        validateAdminRole(userRole);
+        FormSchema existing = formSchemaRepository.findById(schemaId)
+                .orElseThrow(() -> new IllegalArgumentException("Schema not found: " + schemaId));
+
+        if (req.getName() != null && !req.getName().isBlank()) existing.setName(req.getName());
+        if (req.getDescription() != null) existing.setDescription(req.getDescription());
+        if (req.getAuditType() != null && !req.getAuditType().isBlank()) existing.setAuditType(req.getAuditType().toLowerCase());
+        if (req.getAssignedSchools() != null) existing.setAssignedSchools(req.getAssignedSchools());
+        if (req.getStatus() != null) existing.setStatus(req.getStatus());
+
+        return ResponseEntity.ok(formSchemaRepository.save(existing));
+    }
+
+    @PostMapping("/schemas/{schemaId}/clone")
+    public ResponseEntity<FormSchema> cloneSchema(
+            @PathVariable Long schemaId,
+            @RequestBody(required = false) CloneSchemaRequest req,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Name", required = false) String userName) {
+        validateAdminRole(userRole);
+        String newName = req != null ? req.getNewName() : null;
+        String auditType = req != null ? req.getAuditType() : null;
+        Long uniId = req != null ? req.getUniversityId() : null;
+        String assignedSchools = req != null ? req.getAssignedSchools() : null;
+        String creator = userName != null && !userName.isBlank() ? userName : "iqac-admin";
+
+        FormSchema cloned = formConfigService.cloneSchema(schemaId, newName, auditType, uniId, assignedSchools, creator);
+        return ResponseEntity.ok(cloned);
+    }
+
     @GetMapping("/schemas/{schemaId}")
     public ResponseEntity<Map<String, Object>> getSchemaDetails(@PathVariable Long schemaId) {
         FormSchema schema = formSchemaRepository.findById(schemaId)
@@ -355,6 +390,53 @@ public class AdminConfigController {
             });
         }
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    // 6. Copy / Duplicate Table Endpoint
+    @PostMapping("/tables/copy")
+    public ResponseEntity<FormTable> copyTable(
+            @RequestBody CopyTableRequest req,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        validateAdminRole(userRole);
+        if (req == null || req.getSourceTableId() == null) throw new IllegalArgumentException("sourceTableId is required.");
+        if (req.getTargetSectionId() == null) throw new IllegalArgumentException("targetSectionId is required.");
+
+        FormTable copied = formConfigService.copyTable(req.getSourceTableId(), req.getTargetSectionId(), req.getNewTitle(), req.getNewTableKey());
+        return ResponseEntity.ok(copied);
+    }
+
+    @GetMapping("/tables/available")
+    public ResponseEntity<List<Map<String, Object>>> getAvailableTables(
+            @RequestParam(required = false) Long universityId,
+            @RequestParam(required = false) String universityCode) {
+        Long targetUniId = universityId;
+        if (targetUniId == null && universityCode != null && !universityCode.isBlank()) {
+            targetUniId = universityRepository.findByCodeIgnoreCase(universityCode.trim())
+                    .map(University::getId)
+                    .orElse(1L);
+        }
+        if (targetUniId == null) {
+            targetUniId = 1L;
+        }
+
+        List<Map<String, Object>> tables = formConfigService.getAvailableTablesForUniversity(targetUniId);
+        return ResponseEntity.ok(tables);
+    }
+
+    @Data
+    public static class CloneSchemaRequest {
+        private String newName;
+        private String auditType;
+        private Long universityId;
+        private String assignedSchools;
+    }
+
+    @Data
+    public static class CopyTableRequest {
+        private Long sourceTableId;
+        private Long targetSectionId;
+        private String newTitle;
+        private String newTableKey;
     }
 }
 

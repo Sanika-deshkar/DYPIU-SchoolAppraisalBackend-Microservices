@@ -31,6 +31,10 @@ public class FormSchema {
 
     private String description;
 
+    @Column(length = 2000)
+    @Builder.Default
+    private String assignedSchools = "ALL"; // "ALL" or JSON array/comma-separated codes e.g. ["SoCSEA","SoE"]
+
     private Integer activeVersionNumber;
 
     private Long activeVersionId;

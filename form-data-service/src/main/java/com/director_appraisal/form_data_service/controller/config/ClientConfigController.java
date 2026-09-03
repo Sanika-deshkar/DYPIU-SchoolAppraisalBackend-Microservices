@@ -26,8 +26,10 @@ public class ClientConfigController {
             @RequestParam(required = false, defaultValue = "academic") String auditType,
             @RequestParam(required = false) String universityCode,
             @RequestParam(required = false) Long universityId,
+            @RequestParam(required = false) String school,
             @RequestHeader(value = "X-University-Code", required = false) String headerUniversityCode,
-            @RequestHeader(value = "X-University-Id", required = false) Long headerUniversityId) {
+            @RequestHeader(value = "X-University-Id", required = false) Long headerUniversityId,
+            @RequestHeader(value = "X-User-School", required = false) String headerSchool) {
 
         String code = universityCode != null && !universityCode.isBlank() ? universityCode : headerUniversityCode;
         Long uId = universityId != null ? universityId : headerUniversityId;
@@ -38,7 +40,8 @@ public class ClientConfigController {
             code = "dypiu";
         }
 
-        CompiledSchemaDto compiled = formConfigService.getActiveCompiledSchema(code, auditType);
+        String schoolToUse = (school != null && !school.isBlank()) ? school : headerSchool;
+        CompiledSchemaDto compiled = formConfigService.getActiveCompiledSchema(code, auditType, schoolToUse);
         return ResponseEntity.ok(compiled);
     }
 

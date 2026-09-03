@@ -45,9 +45,9 @@ class ClientConfigControllerTest {
                 .title("External Academic Audit")
                 .build();
 
-        when(formConfigService.getActiveCompiledSchema("dypiu", "academic")).thenReturn(dto);
+        when(formConfigService.getActiveCompiledSchema("dypiu", "academic", null)).thenReturn(dto);
 
-        ResponseEntity<CompiledSchemaDto> response = clientConfigController.getActiveSchema("academic", "dypiu", null, null, null);
+        ResponseEntity<CompiledSchemaDto> response = clientConfigController.getActiveSchema("academic", "dypiu", null, null, null, null, null);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals("External Academic Audit", response.getBody().getTitle());
