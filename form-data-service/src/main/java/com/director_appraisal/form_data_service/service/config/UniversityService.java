@@ -44,9 +44,7 @@ public class UniversityService {
             throw new IllegalArgumentException("University code '" + cleanCode + "' already exists.");
         }
         university.setCode(cleanCode);
-        University saved = universityRepository.save(university);
-        defaultSchemaTemplateService.seedDefaultTemplatesForUniversity(saved);
-        return saved;
+        return universityRepository.save(university);
     }
 
     @Transactional

@@ -72,6 +72,8 @@ public class SubmissionController {
         String nameFromContext = null;
         String postFromContext = null;
         String categoryFromContext = null;
+        Long universityIdFromContext = null;
+        String universityCodeFromContext = null;
 
         if (httpRequest != null) {
             String headerRole = httpRequest.getHeader("X-User-Role");
@@ -80,6 +82,16 @@ public class SubmissionController {
             if (headerSchool != null && !headerSchool.isBlank()) schoolFromContext = headerSchool.trim();
             String headerName = httpRequest.getHeader("X-User-Name");
             if (headerName != null && !headerName.isBlank()) nameFromContext = headerName.trim();
+            String headerUniId = httpRequest.getHeader("X-University-Id");
+            if (headerUniId != null && !headerUniId.isBlank()) {
+                try {
+                    universityIdFromContext = Long.parseLong(headerUniId.trim());
+                } catch (Exception ignored) {}
+            }
+            String headerUniCode = httpRequest.getHeader("X-University-Code");
+            if (headerUniCode != null && !headerUniCode.isBlank()) {
+                universityCodeFromContext = headerUniCode.trim();
+            }
 
             String authHeader = httpRequest.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -105,6 +117,14 @@ public class SubmissionController {
                         if (jsonNode.has("category") && (categoryFromContext == null || categoryFromContext.isBlank())) {
                             categoryFromContext = jsonNode.get("category").asText();
                         }
+                        if (jsonNode.has("universityId") && universityIdFromContext == null) {
+                            try {
+                                universityIdFromContext = jsonNode.get("universityId").asLong();
+                            } catch (Exception ignored) {}
+                        }
+                        if (jsonNode.has("universityCode") && (universityCodeFromContext == null || universityCodeFromContext.isBlank())) {
+                            universityCodeFromContext = jsonNode.get("universityCode").asText();
+                        }
                     }
                 } catch (Exception ignored) {}
             }
@@ -128,6 +148,12 @@ public class SubmissionController {
                 if ((u.getCategory() == null || u.getCategory().isBlank()) && categoryFromContext != null) {
                     u.setCategory(categoryFromContext);
                 }
+                if (universityIdFromContext != null) {
+                    u.setUniversityId(universityIdFromContext);
+                }
+                if (universityCodeFromContext != null && !universityCodeFromContext.isBlank()) {
+                    u.setUniversityCode(universityCodeFromContext);
+                }
                 return u;
             }
         }
@@ -139,6 +165,8 @@ public class SubmissionController {
                 .school(schoolFromContext)
                 .post(postFromContext)
                 .category(categoryFromContext)
+                .universityId(universityIdFromContext != null ? universityIdFromContext : 1L)
+                .universityCode(universityCodeFromContext != null && !universityCodeFromContext.isBlank() ? universityCodeFromContext : "dypiu")
                 .build();
     }
 

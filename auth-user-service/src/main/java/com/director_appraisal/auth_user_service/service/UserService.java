@@ -77,6 +77,15 @@ public class UserService implements UserDetailsService {
                 .toList();
     }
 
+    public List<User> findByUniversityCode(String universityCode) {
+        if (universityCode == null || universityCode.isBlank()) {
+            return List.of();
+        }
+        return userRepository.findByUniversityCode(universityCode.trim()).stream()
+                .filter(u -> !Boolean.TRUE.equals(u.getDeleted()))
+                .toList();
+    }
+
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }

@@ -28,16 +28,7 @@ public class DefaultSchemaTemplateService {
 
     @Transactional
     public void seedDefaultTemplatesForUniversity(University university) {
-        if (university == null || university.getId() == null) {
-            return;
-        }
-        try {
-            initAcademicSchema(university);
-            initAdministrativeSchema(university);
-            log.info("Successfully provisioned baseline audit templates for university: {} (ID: {})", university.getName(), university.getId());
-        } catch (Exception e) {
-            log.error("Failed to seed baseline schemas for university {}: {}", university.getName(), e.getMessage(), e);
-        }
+        // No-op: Users create their own custom schemas dynamically in Appraisal Form Studio
     }
 
     private void initAcademicSchema(University university) {

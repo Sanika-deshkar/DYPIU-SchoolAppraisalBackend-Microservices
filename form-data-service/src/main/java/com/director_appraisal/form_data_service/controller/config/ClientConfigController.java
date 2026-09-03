@@ -25,9 +25,15 @@ public class ClientConfigController {
     public ResponseEntity<CompiledSchemaDto> getActiveSchema(
             @RequestParam(required = false, defaultValue = "academic") String auditType,
             @RequestParam(required = false) String universityCode,
-            @RequestHeader(value = "X-University-Code", required = false) String headerUniversityCode) {
+            @RequestParam(required = false) Long universityId,
+            @RequestHeader(value = "X-University-Code", required = false) String headerUniversityCode,
+            @RequestHeader(value = "X-University-Id", required = false) Long headerUniversityId) {
 
         String code = universityCode != null && !universityCode.isBlank() ? universityCode : headerUniversityCode;
+        Long uId = universityId != null ? universityId : headerUniversityId;
+        if ((code == null || code.isBlank()) && uId != null) {
+            code = universityService.getById(uId).map(University::getCode).orElse("dypiu");
+        }
         if (code == null || code.isBlank()) {
             code = "dypiu";
         }
@@ -44,16 +50,23 @@ public class ClientConfigController {
 
     @GetMapping("/branding")
     public ResponseEntity<Map<String, Object>> getBranding(
-            @RequestParam(required = false, defaultValue = "dypiu") String universityCode,
-            @RequestHeader(value = "X-University-Code", required = false) String headerUniversityCode) {
+            @RequestParam(required = false) String universityCode,
+            @RequestParam(required = false) Long universityId,
+            @RequestHeader(value = "X-University-Code", required = false) String headerUniversityCode,
+            @RequestHeader(value = "X-University-Id", required = false) Long headerUniversityId) {
 
         String code = universityCode != null && !universityCode.isBlank() ? universityCode : headerUniversityCode;
-        if (code == null || code.isBlank()) {
-            code = "dypiu";
-        }
+        Long uId = universityId != null ? universityId : headerUniversityId;
 
-        University u = universityService.getByCode(code)
-                .orElseGet(() -> universityService.getByCode("dypiu").orElse(null));
+        University u = null;
+        if (code != null && !code.isBlank()) {
+            u = universityService.getByCode(code).orElse(null);
+        } else if (uId != null) {
+            u = universityService.getById(uId).orElse(null);
+        }
+        if (u == null) {
+            u = universityService.getByCode("dypiu").orElse(null);
+        }
 
         if (u == null) {
             return ResponseEntity.ok(Map.of(

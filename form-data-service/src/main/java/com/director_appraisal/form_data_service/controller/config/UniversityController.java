@@ -11,9 +11,9 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/universities")
+@RequestMapping({"/api/universities", "/api/config/universities"})
 @RequiredArgsConstructor
-@CrossOrigin
+@CrossOrigin(origins = "*")
 public class UniversityController {
 
     private final UniversityService universityService;

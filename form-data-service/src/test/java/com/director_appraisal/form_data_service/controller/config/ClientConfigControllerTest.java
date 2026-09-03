@@ -47,7 +47,7 @@ class ClientConfigControllerTest {
 
         when(formConfigService.getActiveCompiledSchema("dypiu", "academic")).thenReturn(dto);
 
-        ResponseEntity<CompiledSchemaDto> response = clientConfigController.getActiveSchema("academic", "dypiu", null);
+        ResponseEntity<CompiledSchemaDto> response = clientConfigController.getActiveSchema("academic", "dypiu", null, null, null);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals("External Academic Audit", response.getBody().getTitle());
@@ -67,7 +67,7 @@ class ClientConfigControllerTest {
 
         when(universityService.getByCode("dypiu")).thenReturn(Optional.of(u));
 
-        ResponseEntity<Map<String, Object>> response = clientConfigController.getBranding("dypiu", null);
+        ResponseEntity<Map<String, Object>> response = clientConfigController.getBranding("dypiu", null, null, null);
         assertEquals(200, response.getStatusCode().value());
         assertEquals("D Y Patil International University Akurdi Pune", response.getBody().get("universityName"));
         assertEquals("#1e3a8a", response.getBody().get("primaryColor"));

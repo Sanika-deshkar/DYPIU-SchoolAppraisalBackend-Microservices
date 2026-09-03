@@ -17,9 +17,9 @@ import java.util.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/admin/config")
+@RequestMapping({"/api/admin/config", "/api/config"})
 @RequiredArgsConstructor
-@CrossOrigin
+@CrossOrigin(origins = "*")
 public class AdminConfigController {
 
     private final FormSchemaRepository formSchemaRepository;
@@ -102,6 +102,25 @@ public class AdminConfigController {
         validateAdminRole(userRole);
         formConfigService.deleteSchema(schemaId);
         return ResponseEntity.ok(Map.of("success", true, "message", "Schema deleted successfully."));
+    }
+
+    @DeleteMapping("/schemas/clear-all")
+    public ResponseEntity<Map<String, Object>> clearAllSchemas(
+            @RequestParam(required = false) Long universityId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        validateAdminRole(userRole);
+        Long targetUniId = universityId != null ? universityId : 1L;
+        formConfigService.deleteAllSchemasForUniversity(targetUniId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "All schemas cleared successfully."));
+    }
+
+    @DeleteMapping("/universities/{universityId}/schemas")
+    public ResponseEntity<Map<String, Object>> clearUniversitySchemas(
+            @PathVariable Long universityId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        validateAdminRole(userRole);
+        formConfigService.deleteAllSchemasForUniversity(universityId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "All schemas cleared successfully."));
     }
 
     // 2. Version Lifecycle

@@ -103,6 +103,18 @@ CREATE TABLE IF NOT EXISTS academic_years (
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS university_schools (
+    id BIGSERIAL PRIMARY KEY,
+    university_id BIGINT NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    group_name VARCHAR(50) DEFAULT 'general',
+    status VARCHAR(50) DEFAULT 'ACTIVE',
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for high-performance tenant querying
 CREATE INDEX IF NOT EXISTS idx_form_schemas_university_id ON form_schemas(university_id);
 CREATE INDEX IF NOT EXISTS idx_form_schemas_audit_type ON form_schemas(audit_type);
@@ -111,3 +123,5 @@ CREATE INDEX IF NOT EXISTS idx_form_sections_version_id ON form_sections(version
 CREATE INDEX IF NOT EXISTS idx_form_tables_section_id ON form_tables(section_id);
 CREATE INDEX IF NOT EXISTS idx_form_fields_section_id ON form_fields(section_id);
 CREATE INDEX IF NOT EXISTS idx_form_fields_table_id ON form_fields(table_id);
+CREATE INDEX IF NOT EXISTS idx_uni_schools_university_id ON university_schools(university_id);
+CREATE INDEX IF NOT EXISTS idx_uni_schools_code ON university_schools(code);

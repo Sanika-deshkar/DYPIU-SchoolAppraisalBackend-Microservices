@@ -21,6 +21,10 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     Optional<Submission> findByEmailAndAuditTypeAndAcademicYearAndVersion(String email, String auditType, String academicYear, Integer version);
     List<Submission> findByStatusIn(List<String> statuses);
     List<Submission> findByAuditTypeAndStatusIn(String auditType, List<String> statuses);
+    List<Submission> findByUniversityIdAndStatusIn(Long universityId, List<String> statuses);
+    List<Submission> findAllByUniversityId(Long universityId);
+    Optional<Submission> findFirstByEmailAndAuditTypeAndAcademicYearAndUniversityIdOrderByIdDesc(String email, String auditType, String academicYear, Long universityId);
+    Optional<Submission> findFirstByEmailAndAuditTypeAndAuditCycleAndUniversityIdOrderByIdDesc(String email, String auditType, String auditCycle, Long universityId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Submission s where s.id = :id")

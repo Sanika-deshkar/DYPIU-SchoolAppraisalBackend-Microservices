@@ -12,4 +12,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     java.util.List<User> findByAccountType(String accountType);
     java.util.List<User> findByUniversityId(Long universityId);
+    java.util.List<User> findByUniversityCode(String universityCode);
 }

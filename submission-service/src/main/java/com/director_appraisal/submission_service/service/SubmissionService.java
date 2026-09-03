@@ -185,12 +185,20 @@ public class SubmissionService {
 
     @Transactional
     public Submission getOrCreateSharedAdministrativeDraftForCycle(String cycleId) {
+        return getOrCreateSharedAdministrativeDraftForCycle(cycleId, 1L, "dypiu");
+    }
+
+    @Transactional
+    public Submission getOrCreateSharedAdministrativeDraftForCycle(String cycleId, Long universityId, String universityCode) {
         if (cycleId == null || cycleId.isBlank()) {
             cycleId = getCurrentAcademicYearLabel();
             if (cycleId == null || cycleId.isBlank()) {
                 cycleId = "2025-2026";
             }
         }
+        Long effectiveUniId = universityId != null ? universityId : 1L;
+        String effectiveUniCode = universityCode != null && !universityCode.isBlank() ? universityCode : "dypiu";
+
         String academicYear;
         String auditCycle;
         if (cycleId.length() == 9 && cycleId.contains("-")) { // e.g. 2025-2026
@@ -206,10 +214,12 @@ public class SubmissionService {
             auditCycle = cycleId;
         }
 
-        Optional<Submission> existing = submissionRepository.findFirstByEmailAndAuditTypeAndAcademicYearOrderByIdDesc(
-                SHARED_ADMINISTRATIVE_EMAIL, "administrative", academicYear)
-            .or(() -> submissionRepository.findFirstByEmailAndAuditTypeAndAuditCycleOrderByIdDesc(
-                SHARED_ADMINISTRATIVE_EMAIL, "administrative", auditCycle));
+        Optional<Submission> existing = submissionRepository.findFirstByEmailAndAuditTypeAndAcademicYearAndUniversityIdOrderByIdDesc(
+                SHARED_ADMINISTRATIVE_EMAIL, "administrative", academicYear, effectiveUniId)
+            .or(() -> submissionRepository.findFirstByEmailAndAuditTypeAndAuditCycleAndUniversityIdOrderByIdDesc(
+                SHARED_ADMINISTRATIVE_EMAIL, "administrative", auditCycle, effectiveUniId))
+            .or(() -> submissionRepository.findFirstByEmailAndAuditTypeAndAcademicYearOrderByIdDesc(
+                SHARED_ADMINISTRATIVE_EMAIL, "administrative", academicYear));
 
         if (existing.isPresent()) {
             Submission sub = existing.get();
@@ -226,7 +236,6 @@ public class SubmissionService {
             return sub;
         }
 
-
         Submission submission = Submission.builder()
                 .email(SHARED_ADMINISTRATIVE_EMAIL)
                 .auditType("administrative")
@@ -241,6 +250,8 @@ public class SubmissionService {
                 .reportCategory("INTERNAL")
                 .version(1)
                 .hasNextCycle(false)
+                .universityId(effectiveUniId)
+                .universityCode(effectiveUniCode)
                 .build();
         Submission saved = submissionRepository.save(submission);
         saved.setRootSubmissionId(saved.getId());
@@ -653,6 +664,10 @@ public class SubmissionService {
     @Transactional
     public Submission getOrCreateDraft(String email, String auditType) {
         String academicYear = getCurrentAcademicYearLabel();
+        UserDto caller = resolveUser(email);
+        Long universityId = caller != null && caller.getUniversityId() != null ? caller.getUniversityId() : 1L;
+        String universityCode = caller != null && caller.getUniversityCode() != null && !caller.getUniversityCode().isBlank() ? caller.getUniversityCode() : "dypiu";
+
         Optional<Submission> editableCycle = submissionRepository
                 .findFirstByEmailAndAuditTypeAndAcademicYearAndStatusInOrderByIdDesc(email, auditType, academicYear, EDITABLE_CYCLE_STATUSES);
         if (editableCycle.isPresent()) {
@@ -661,7 +676,8 @@ public class SubmissionService {
             return sub;
         }
 
-        Optional<Submission> latestCycle = submissionRepository.findFirstByEmailAndAuditTypeAndAcademicYearOrderByIdDesc(email, auditType, academicYear);
+        Optional<Submission> latestCycle = submissionRepository.findFirstByEmailAndAuditTypeAndAcademicYearAndUniversityIdOrderByIdDesc(email, auditType, academicYear, universityId)
+                .or(() -> submissionRepository.findFirstByEmailAndAuditTypeAndAcademicYearOrderByIdDesc(email, auditType, academicYear));
         if (latestCycle.isPresent()) {
             Submission sub = latestCycle.get();
             populateAuditorProgressAndAssignments(sub);
@@ -670,7 +686,7 @@ public class SubmissionService {
 
         Long schemaVersionId = 1L;
         try {
-            Map<String, Object> cfg = formDataClient.getActiveConfig(auditType, "dypiu");
+            Map<String, Object> cfg = formDataClient.getActiveConfig(auditType, universityCode);
             if (cfg != null && cfg.get("versionId") != null) {
                 schemaVersionId = Long.valueOf(cfg.get("versionId").toString());
             }
@@ -688,15 +704,14 @@ public class SubmissionService {
                 .reportCategory("INTERNAL")
                 .version(1)
                 .schemaVersionId(schemaVersionId)
-                .universityId(1L)
-                .universityCode("dypiu")
+                .universityId(universityId)
+                .universityCode(universityCode)
                 .build();
         Submission saved = submissionRepository.save(submission);
         saved.setRootSubmissionId(saved.getId());
         Submission finalSaved = submissionRepository.save(saved);
         populateAuditorProgressAndAssignments(finalSaved);
         return finalSaved;
-
     }
 
     @Transactional
@@ -1215,9 +1230,10 @@ public class SubmissionService {
 
     public List<Submission> getAllSubmissionsForUser(UserDto user) {
         String role = user.getRole().toLowerCase();
+        Long universityId = user.getUniversityId() != null ? user.getUniversityId() : 1L;
 
-        List<Submission> allInDb = submissionRepository.findAll();
-        System.out.println("[AUDIT_DEBUG] getAllSubmissionsForUser: user=" + user.getEmail() + ", role=" + role + ", totalInDb=" + allInDb.size());
+        List<Submission> allInDb = submissionRepository.findAllByUniversityId(universityId);
+        System.out.println("[AUDIT_DEBUG] getAllSubmissionsForUser: user=" + user.getEmail() + ", role=" + role + ", uniId=" + universityId + ", totalInDb=" + allInDb.size());
         for (Submission s : allInDb) {
             System.out.println("[AUDIT_DEBUG]   Sub in DB: id=" + s.getId() + ", auditType=" + s.getAuditType() + ", status=" + s.getStatus() + ", email=" + s.getEmail());
         }
@@ -1256,12 +1272,12 @@ public class SubmissionService {
         List<Submission> list;
 
         if ("iqac".equals(role)) {
-            list = submissionRepository.findByStatusIn(IQAC_VISIBLE_STATUSES);
+            list = submissionRepository.findByUniversityIdAndStatusIn(universityId, IQAC_VISIBLE_STATUSES);
             System.out.println("[AUDIT_DEBUG] iqac list count: " + list.size());
         } else if ("vice-chancellor".equals(role)) {
-            list = submissionRepository.findByStatusIn(VC_VISIBLE_STATUSES);
+            list = submissionRepository.findByUniversityIdAndStatusIn(universityId, VC_VISIBLE_STATUSES);
         } else if (role.contains("auditor") || "auditor".equalsIgnoreCase(user.getAccountType())) {
-            List<Submission> allSubmissions = submissionRepository.findAll();
+            List<Submission> allSubmissions = allInDb;
             list = allSubmissions.stream()
                     .filter(sub -> {
                         boolean matchesStatus = List.of("SUBMITTED", "UNDER_REVIEW", "AUDITOR_COMPLETED").contains(sub.getStatus().toUpperCase());
@@ -1302,7 +1318,8 @@ public class SubmissionService {
 
     public List<Submission> getPreviousReports(UserDto user, String academicYear) {
         validateReviewer(user);
-        return submissionRepository.findByStatusIn(List.of(STATUS_APPROVED_LEGACY, STATUS_FINAL)).stream()
+        Long universityId = user != null && user.getUniversityId() != null ? user.getUniversityId() : 1L;
+        return submissionRepository.findByUniversityIdAndStatusIn(universityId, List.of(STATUS_APPROVED_LEGACY, STATUS_FINAL)).stream()
                 .filter(submission -> academicYear == null || academicYear.isBlank()
                         || academicYear.equals(submission.getAcademicYear())
                         || academicYear.equals(submission.getAuditCycle()))

@@ -298,6 +298,16 @@ public class FormConfigService {
         log.info("Deleted schema '{}' (ID: {})", schema.getName(), schemaId);
     }
 
+    @Transactional
+    public void deleteAllSchemasForUniversity(Long universityId) {
+        if (universityId == null) return;
+        List<FormSchema> schemas = formSchemaRepository.findByUniversityId(universityId);
+        for (FormSchema s : schemas) {
+            deleteSchema(s.getId());
+        }
+        log.info("Deleted all schemas for university ID: {}", universityId);
+    }
+
     private void validateVersionIntegrity(Long versionId) {
         List<FormSection> sections = formSectionRepository.findByVersionIdOrderByDisplayOrderAscIdAsc(versionId);
         if (sections.isEmpty()) {

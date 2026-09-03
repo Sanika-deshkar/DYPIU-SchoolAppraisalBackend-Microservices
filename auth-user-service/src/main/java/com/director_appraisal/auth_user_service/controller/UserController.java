@@ -46,9 +46,22 @@ public class UserController {
             return authorizationError;
         }
 
+        User currentUser = getCurrentUser(authentication);
+        Long currentUniId = currentUser != null ? currentUser.getUniversityId() : null;
+        String currentUniCode = currentUser != null ? currentUser.getUniversityCode() : null;
+
+        List<User> allSourceList;
+        if (currentUniId != null) {
+            allSourceList = userService.findByUniversityId(currentUniId);
+        } else if (currentUniCode != null && !currentUniCode.isBlank()) {
+            allSourceList = userService.findByUniversityCode(currentUniCode);
+        } else {
+            allSourceList = userService.findAllUsers();
+        }
+
         List<User> sourceList = includeDeleted
-                ? userService.findAllUsers()
-                : userService.findAllUsers().stream().filter(this::isManagedUser).toList();
+                ? allSourceList
+                : allSourceList.stream().filter(this::isManagedUser).toList();
 
         List<Map<String, Object>> users = sourceList.stream()
                 .map(this::toUserResponse)
@@ -153,7 +166,14 @@ public class UserController {
             return error(HttpStatus.NOT_FOUND, "User not found");
         }
 
-        return ResponseEntity.ok(Map.of("user", toUserResponse(userOpt.get())));
+        User targetUser = userOpt.get();
+        User currentUser = getCurrentUser(authentication);
+        if (currentUser != null && currentUser.getUniversityId() != null && targetUser.getUniversityId() != null
+                && !currentUser.getUniversityId().equals(targetUser.getUniversityId())) {
+            return error(HttpStatus.FORBIDDEN, "You do not have permission to view users of another university.");
+        }
+
+        return ResponseEntity.ok(Map.of("user", toUserResponse(targetUser)));
     }
 
     @PostMapping
@@ -169,6 +189,10 @@ public class UserController {
                 return error(HttpStatus.CONFLICT, "Email already exists.");
             }
 
+            User currentUser = getCurrentUser(authentication);
+            Long uniId = currentUser != null && currentUser.getUniversityId() != null ? currentUser.getUniversityId() : 1L;
+            String uniCode = currentUser != null && currentUser.getUniversityCode() != null && !currentUser.getUniversityCode().isBlank() ? currentUser.getUniversityCode() : "dypiu";
+
             User userToSave = User.builder()
                     .name(validatedUser.name)
                     .email(validatedUser.email)
@@ -181,6 +205,8 @@ public class UserController {
                     .auditorType(validatedUser.auditorType)
                     .auditorRole(validatedUser.auditorRole)
                     .post(validatedUser.post)
+                    .universityId(uniId)
+                    .universityCode(uniCode)
                     .build();
             userToSave.setSchoolsList(validatedUser.schools);
             User savedUser = userService.createUser(userToSave);
@@ -213,8 +239,13 @@ public class UserController {
             return deleteError(HttpStatus.BAD_REQUEST, "Invalid user id");
         }
 
+        User currentUser = getCurrentUser(authentication);
         return userService.findById(userId)
                 .map(user -> {
+                    if (currentUser != null && currentUser.getUniversityId() != null && user.getUniversityId() != null
+                            && !currentUser.getUniversityId().equals(user.getUniversityId())) {
+                        return deleteError(HttpStatus.FORBIDDEN, "You are not authorized to delete users of another university");
+                    }
                     if (!isManagedUser(user)) {
                         return deleteError(HttpStatus.FORBIDDEN, "You are not authorized to delete users");
                     }
@@ -250,6 +281,11 @@ public class UserController {
         }
 
         User user = existingUser.get();
+        User currentUser = getCurrentUser(authentication);
+        if (currentUser != null && currentUser.getUniversityId() != null && user.getUniversityId() != null
+                && !currentUser.getUniversityId().equals(user.getUniversityId())) {
+            return updateError(HttpStatus.FORBIDDEN, "You are not authorized to update users of another university");
+        }
         if (!isManagedUser(user)) {
             return updateError(HttpStatus.FORBIDDEN, "You are not authorized to update users");
         }
