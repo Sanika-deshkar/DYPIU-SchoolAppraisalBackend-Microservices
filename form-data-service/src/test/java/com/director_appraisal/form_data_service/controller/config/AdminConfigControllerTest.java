@@ -76,7 +76,7 @@ class AdminConfigControllerTest {
             return s;
         });
 
-        ResponseEntity<FormSection> response = adminConfigController.createSection(sec);
+        ResponseEntity<FormSection> response = adminConfigController.createSection(null, sec);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals("Part F - Special Achievements", response.getBody().getTitle());
@@ -101,7 +101,7 @@ class AdminConfigControllerTest {
         });
         when(formFieldRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        ResponseEntity<FormTable> response = adminConfigController.createTable(tbl);
+        ResponseEntity<FormTable> response = adminConfigController.createTable(null, tbl);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals("Special Honors", response.getBody().getTitle());

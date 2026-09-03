@@ -33,8 +33,13 @@ public class SchemaCompilerService {
         FormSchema schema = formSchemaRepository.findById(version.getSchemaId())
                 .orElseThrow(() -> new IllegalArgumentException("FormSchema not found: " + version.getSchemaId()));
 
-        University university = universityRepository.findById(schema.getUniversityId())
-                .orElse(null);
+        University university = null;
+        if (schema.getUniversityId() != null) {
+            university = universityRepository.findById(schema.getUniversityId()).orElse(null);
+        }
+        if (university == null) {
+            university = universityRepository.findByCodeIgnoreCase("dypiu").orElse(null);
+        }
 
         Map<String, Object> header = new LinkedHashMap<>();
         if (university != null) {

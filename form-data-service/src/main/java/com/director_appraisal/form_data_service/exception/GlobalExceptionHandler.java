@@ -42,8 +42,8 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "INVALID_STATE", e.getMessage(), req, null);
     }
 
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<ApiErrorResponse> handleNotFound(NoSuchElementException e, HttpServletRequest req) {
+    @ExceptionHandler({NoSuchElementException.class, org.springframework.web.servlet.resource.NoResourceFoundException.class})
+    public ResponseEntity<ApiErrorResponse> handleNotFound(Exception e, HttpServletRequest req) {
         log.warn("[RESOURCE_NOT_FOUND] path={} message={}", req.getRequestURI(), e.getMessage());
         return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", e.getMessage(), req, null);
     }

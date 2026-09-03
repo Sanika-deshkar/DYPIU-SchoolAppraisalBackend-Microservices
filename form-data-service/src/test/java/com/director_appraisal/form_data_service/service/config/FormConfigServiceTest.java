@@ -210,4 +210,44 @@ class FormConfigServiceTest {
         assertEquals(1, schema.getActiveVersionNumber());
         verify(formSchemaRepository).save(schema);
     }
+
+    @Test
+    @DisplayName("Should compile version with real SchemaCompilerService even if 0 sections and universityId null")
+    void testRealSchemaCompilerService() {
+        SchemaCompilerService compiler = new SchemaCompilerService(
+                formSchemaRepository,
+                schemaVersionRepository,
+                formSectionRepository,
+                formTableRepository,
+                formFieldRepository,
+                universityRepository,
+                objectMapper
+        );
+
+        FormSchema schema = FormSchema.builder()
+                .id(5L)
+                .name("Part A")
+                .auditType("academic")
+                .universityId(null)
+                .build();
+
+        SchemaVersion draftV1 = SchemaVersion.builder()
+                .id(5L)
+                .schemaId(5L)
+                .versionNumber(1)
+                .status("DRAFT")
+                .build();
+
+        when(schemaVersionRepository.findById(5L)).thenReturn(Optional.of(draftV1));
+        when(formSchemaRepository.findById(5L)).thenReturn(Optional.of(schema));
+        when(formSectionRepository.findByVersionIdOrderByDisplayOrderAscIdAsc(5L)).thenReturn(List.of());
+        when(universityRepository.findByCodeIgnoreCase("dypiu")).thenReturn(Optional.empty());
+
+        CompiledSchemaDto dto = compiler.compile(5L);
+        assertNotNull(dto);
+        assertEquals(5L, dto.getSchemaId());
+        assertEquals(5L, dto.getVersionId());
+        assertEquals("Part A", dto.getTitle());
+        assertTrue(dto.getSections().isEmpty());
+    }
 }

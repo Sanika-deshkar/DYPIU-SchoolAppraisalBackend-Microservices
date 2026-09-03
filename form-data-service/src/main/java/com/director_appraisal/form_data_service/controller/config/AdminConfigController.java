@@ -159,7 +159,7 @@ public class AdminConfigController {
     }
 
     // 2. Version Lifecycle
-    @PostMapping("/schemas/{schemaId}/draft")
+    @PostMapping({"/schemas/{schemaId}/draft", "/schemas/{schemaId}/versions/draft"})
     public ResponseEntity<SchemaVersion> createDraft(
             @PathVariable Long schemaId,
             @RequestParam(required = false, defaultValue = "admin") String createdBy) {
@@ -176,7 +176,7 @@ public class AdminConfigController {
         return ResponseEntity.ok(Map.of("success", true, "message", "Version deleted successfully."));
     }
 
-    @GetMapping("/versions/{versionId}")
+    @GetMapping({"/versions/{versionId}/tree", "/versions/{versionId}"})
     public ResponseEntity<CompiledSchemaDto> getVersionTree(@PathVariable Long versionId) {
         CompiledSchemaDto tree = schemaCompilerService.compile(versionId);
         return ResponseEntity.ok(tree);
@@ -190,17 +190,27 @@ public class AdminConfigController {
         return ResponseEntity.ok(published);
     }
 
-    @PostMapping("/schemas/{schemaId}/rollback")
+    @PostMapping({"/schemas/{schemaId}/rollback/{targetVersionId}", "/schemas/{schemaId}/rollback"})
     public ResponseEntity<Map<String, Object>> rollback(
             @PathVariable Long schemaId,
-            @RequestParam Long targetVersionId) {
-        formConfigService.rollbackVersion(schemaId, targetVersionId);
+            @PathVariable(required = false) Long targetVersionId,
+            @RequestParam(name = "targetVersionId", required = false) Long targetVersionIdParam) {
+        Long targetId = targetVersionId != null ? targetVersionId : targetVersionIdParam;
+        if (targetId == null) {
+            throw new IllegalArgumentException("targetVersionId is required");
+        }
+        formConfigService.rollbackVersion(schemaId, targetId);
         return ResponseEntity.ok(Map.of("success", true, "message", "Rolled back successfully."));
     }
 
     // 3. Sections Management
-    @PostMapping("/sections")
-    public ResponseEntity<FormSection> createSection(@RequestBody FormSection req) {
+    @PostMapping({"/sections", "/versions/{versionId}/sections"})
+    public ResponseEntity<FormSection> createSection(
+            @PathVariable(required = false) Long versionId,
+            @RequestBody FormSection req) {
+        if (req.getVersionId() == null && versionId != null) {
+            req.setVersionId(versionId);
+        }
         if (req.getVersionId() == null) throw new IllegalArgumentException("versionId is required.");
         if (req.getTitle() == null || req.getTitle().isBlank()) throw new IllegalArgumentException("title is required.");
         if (req.getSectionKey() == null || req.getSectionKey().isBlank()) {
@@ -259,8 +269,13 @@ public class AdminConfigController {
 
 
     // 4. Tables Management
-    @PostMapping("/tables")
-    public ResponseEntity<FormTable> createTable(@RequestBody FormTable req) {
+    @PostMapping({"/tables", "/sections/{sectionId}/tables"})
+    public ResponseEntity<FormTable> createTable(
+            @PathVariable(required = false) Long sectionId,
+            @RequestBody FormTable req) {
+        if (req.getSectionId() == null && sectionId != null) {
+            req.setSectionId(sectionId);
+        }
         if (req.getSectionId() == null) throw new IllegalArgumentException("sectionId is required.");
         if (req.getTitle() == null || req.getTitle().isBlank()) throw new IllegalArgumentException("title is required.");
         if (req.getTableKey() == null || req.getTableKey().isBlank()) {
@@ -330,8 +345,17 @@ public class AdminConfigController {
     }
 
     // 5. Fields Management
-    @PostMapping("/fields")
-    public ResponseEntity<FormField> createField(@RequestBody FormField req) {
+    @PostMapping({"/fields", "/sections/{sectionId}/fields", "/tables/{tableId}/fields"})
+    public ResponseEntity<FormField> createField(
+            @PathVariable(required = false) Long sectionId,
+            @PathVariable(required = false) Long tableId,
+            @RequestBody FormField req) {
+        if (req.getSectionId() == null && sectionId != null) {
+            req.setSectionId(sectionId);
+        }
+        if (req.getTableId() == null && tableId != null) {
+            req.setTableId(tableId);
+        }
         if (req.getSectionId() == null) throw new IllegalArgumentException("sectionId is required.");
         if (req.getLabel() == null || req.getLabel().isBlank()) throw new IllegalArgumentException("label is required.");
         if (req.getFieldKey() == null || req.getFieldKey().isBlank()) {
