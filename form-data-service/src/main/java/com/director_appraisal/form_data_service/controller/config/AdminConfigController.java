@@ -44,7 +44,8 @@ public class AdminConfigController {
     @GetMapping("/schemas")
     public ResponseEntity<List<FormSchema>> getSchemas(
             @RequestParam(required = false) Long universityId,
-            @RequestParam(required = false) String universityCode) {
+            @RequestParam(required = false) String universityCode,
+            @RequestParam(required = false) String auditType) {
 
         Long targetUniId = universityId;
         if (targetUniId == null && universityCode != null && !universityCode.isBlank()) {
@@ -57,6 +58,12 @@ public class AdminConfigController {
         }
 
         List<FormSchema> schemas = formSchemaRepository.findByUniversityId(targetUniId);
+        if (auditType != null && !auditType.isBlank()) {
+            String filterType = auditType.trim().toLowerCase();
+            schemas = schemas.stream()
+                    .filter(s -> s.getAuditType() != null && s.getAuditType().trim().toLowerCase().equals(filterType))
+                    .toList();
+        }
         return ResponseEntity.ok(schemas);
     }
 
